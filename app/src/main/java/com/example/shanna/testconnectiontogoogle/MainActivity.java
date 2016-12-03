@@ -1,28 +1,9 @@
 package com.example.shanna.testconnectiontogoogle;
 
-import com.example.quickstart.R;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GoogleApiAvailability;
-import com.google.api.client.extensions.android.http.AndroidHttp;
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
-import com.google.api.client.googleapis.extensions.android.gms.auth.GooglePlayServicesAvailabilityIOException;
-import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException;
-
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.client.util.ExponentialBackOff;
-
-import com.google.api.services.calendar.CalendarScopes;
-import com.google.api.client.util.DateTime;
-
-import com.google.api.services.calendar.model.*;
-
 import android.Manifest;
 import android.accounts.AccountManager;
 import android.app.Activity;
 import android.app.Dialog;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -31,15 +12,26 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.text.TextUtils;
-import android.text.method.ScrollingMovementMethod;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.TextView;
+import android.widget.Toast;
+
+import com.example.quickstart.R;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.api.client.extensions.android.http.AndroidHttp;
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
+import com.google.api.client.googleapis.extensions.android.gms.auth.GooglePlayServicesAvailabilityIOException;
+import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.util.DateTime;
+import com.google.api.client.util.ExponentialBackOff;
+import com.google.api.services.calendar.CalendarScopes;
+import com.google.api.services.calendar.model.Event;
+import com.google.api.services.calendar.model.Events;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -51,19 +43,15 @@ import pub.devrel.easypermissions.EasyPermissions;
 
 public class MainActivity extends Activity
         implements EasyPermissions.PermissionCallbacks {
-    GoogleAccountCredential mCredential;
-    private TextView mOutputText;
-    ProgressDialog mProgress;
+    private GoogleAccountCredential mCredential;
     private ListView listView;
-    private ArrayAdapter<String> arrayAdapter;
-    private String listItemSelected;
+    private ArrayAdapter<String> adapter;
 
     static final int REQUEST_ACCOUNT_PICKER = 1000;
     static final int REQUEST_AUTHORIZATION = 1001;
     static final int REQUEST_GOOGLE_PLAY_SERVICES = 1002;
     static final int REQUEST_PERMISSION_GET_ACCOUNTS = 1003;
 
-    private static final String BUTTON_TEXT = "Call Google Calendar API";
     private static final String PREF_ACCOUNT_NAME = "accountName";
     private static final String[] SCOPES = { CalendarScopes.CALENDAR_READONLY };
 
@@ -74,18 +62,23 @@ public class MainActivity extends Activity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mProgress = new ProgressDialog(this);
-        mProgress.setMessage("Calling Google Calendar API ...");
 
-        //listView.setAdapter(arrayAdapter);
-
-        //try{arrayAdapter.addAll(getDataFromApi());}
-        //catch(Throwable e){}
+        listView = (ListView) findViewById(R.id.listView);
+        adapter = new ArrayAdapter<>(
+                getApplicationContext(), R.layout.support_simple_spinner_dropdown_item);
 
         // Initialize credentials and service object.
         mCredential = GoogleAccountCredential.usingOAuth2(
                 getApplicationContext(), Arrays.asList(SCOPES))
                 .setBackOff(new ExponentialBackOff());
+    }
+
+    private void alert(String message){
+        Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
+    }
+
+    public void getResults(View view){
+        getResultsFromApi();
     }
 
     /**
@@ -101,7 +94,7 @@ public class MainActivity extends Activity
         } else if (mCredential.getSelectedAccountName() == null) {
             chooseAccount();
         } else if (! isDeviceOnline()) {
-            mOutputText.setText("No network connection available.");
+            alert("No network connection available.");
         } else {
             new MakeRequestTask(mCredential).execute();
         }
@@ -155,12 +148,11 @@ public class MainActivity extends Activity
     @Override
     protected void onActivityResult(
             int requestCode, int resultCode, Intent data) {
-        mOutputText = (TextView) findViewById(R.id.mOutputText);
         super.onActivityResult(requestCode, resultCode, data);
         switch(requestCode) {
             case REQUEST_GOOGLE_PLAY_SERVICES:
                 if (resultCode != RESULT_OK) {
-                    mOutputText.setText(
+                    alert(
                             "This app requires Google Play Services. Please install " +
                                     "Google Play Services on your device and relaunch this app.");
                 } else {
@@ -352,30 +344,24 @@ public class MainActivity extends Activity
 
         @Override
         protected void onPreExecute() {
-            mOutputText.setText("");
-            mProgress.show();
+            adapter.clear();
         }
 
         @Override
         protected void onPostExecute(List<String> output) {
-            mProgress.hide();
-            if (output == null || output.size() == 0) {
-                mOutputText.setText("No results returned.");
-            } else {
-                output.add(0, "Data retrieved using the Google Calendar API:");
-                mOutputText.setText(TextUtils.join("\n", output));
-                arrayAdapter.addAll(output);
-                //listView.setAdapter(arrayAdapter);
 
-                //try{arrayAdapter.addAll(getDataFromApi());}
-                //catch(Throwable e){}
+            if (output == null || output.size() == 0) {
+                alert("No results returned.");
+            } else {
+                alert("Data retrieved using the Google Calendar API:");
+                // fill adapter and add to listView
+                adapter.addAll(output);
+                listView.setAdapter(adapter);
             }
         }
 
         @Override
         protected void onCancelled() {
-            mOutputText = (TextView) findViewById(R.id.mOutputText);
-            mProgress.hide();
             if (mLastError != null) {
                 if (mLastError instanceof GooglePlayServicesAvailabilityIOException) {
                     showGooglePlayServicesAvailabilityErrorDialog(
@@ -386,11 +372,11 @@ public class MainActivity extends Activity
                             ((UserRecoverableAuthIOException) mLastError).getIntent(),
                             MainActivity.REQUEST_AUTHORIZATION);
                 } else {
-                    mOutputText.setText("The following error occurred:\n"
+                    alert("The following error occurred:\n"
                             + mLastError.getMessage());
                 }
             } else {
-                mOutputText.setText("Request cancelled.");
+                alert("Request cancelled.");
             }
         }
     }
