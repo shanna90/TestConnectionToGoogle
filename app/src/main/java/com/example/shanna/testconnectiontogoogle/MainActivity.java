@@ -74,7 +74,6 @@ public class MainActivity extends Activity
     }
 
     private void alert(String message){
-        // show alert on screen
         Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
     }
 
