@@ -62,7 +62,7 @@ public class MainActivity extends Activity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        setContentView(R.layout.activity_main);
         listView = (ListView) findViewById(R.id.listView);
         adapter = new ArrayAdapter<>(
                 getApplicationContext(), R.layout.support_simple_spinner_dropdown_item);
